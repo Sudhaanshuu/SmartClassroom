@@ -1,6 +1,6 @@
 
 // functions.c
-#include "smart_classroom.h"
+#include "project.h"
 
 // Keypad configuration
 static uint32_t code[] = {0x0E, 0x0D, 0x0B, 0x07};
@@ -70,9 +70,10 @@ void handle_attendance(void) {
 }
 
 void handle_quiz(void) {
-    uint8_t i;
+    uint8_t i,j;
     char answer;
     uint8_t score = 0;
+	 char score_str[16];
     
     for(i = 0; i < 3; i++) { // Only show first 3 questions
         lcd_clear();
@@ -80,7 +81,7 @@ void handle_quiz(void) {
         lcd_cmd_write(0xC0);
         
         // Show options one by one with delay
-        uint8_t j;
+       
         for(j = 0; j < 4; j++) {
             lcd_cmd_write(0xC0);
             lcd_str_write(quiz_questions[i].options[j]);
@@ -102,7 +103,7 @@ void handle_quiz(void) {
     }
     
     lcd_clear();
-    char score_str[16];
+   
     sprintf(score_str, "Score: %d/3", score);
     lcd_str_write(score_str);
     delay_ms(2000);
@@ -213,12 +214,13 @@ void buzz_error(void) {
 }
 
 float read_temperature(void) {
+uint32_t adc_value;
     LPC_ADC->ADCR |= (1<<24);
     while((LPC_ADC->ADDR2 & (1<<31)) == 0);
-    uint32_t adc_value = (LPC_ADC->ADDR2 >> 4) & 0xFFF;
+     adc_value = (LPC_ADC->ADDR2 >> 4) & 0xFFF;
     return (adc_value * 3.3 * 100.0) / 4096.0;
 }
-
+			uint32_t i;
 void initialize_students(void) {
     // Initialize with 10 sample Indian names and registration numbers
     strcpy(students[0].name, "Raj Kumar");
@@ -252,7 +254,7 @@ void initialize_students(void) {
     strcpy(students[9].reg_no, "2023000010");
     
     // Initialize presence to 0
-    for(int i = 0; i < MAX_STUDENTS; i++) {
+    for( i = 0; i < MAX_STUDENTS; i++) {
         students[i].present = 0;
     }
 }
@@ -268,7 +270,35 @@ void delay_ms(uint32_t ms) {
     }
 }
 
+
+void lcd_cmd_write(char c){
+	   LPC_GPIO0->FIOCLR=VP;
+	   LPC_GPIO0->FIOSET=c<<15;
+	   LPC_GPIO0->FIOCLR=RS;
+	   LPC_GPIO0->FIOSET=EN;
+	   delay_ms(10);
+	   LPC_GPIO0->FIOCLR=EN;
+
+
+}
+
+void lcd_data_write(char d){
+       LPC_GPIO0->FIOCLR=VP;
+	   LPC_GPIO0->FIOSET=d<<15;
+	   LPC_GPIO0->FIOSET=RS;
+	   LPC_GPIO0->FIOSET=EN;
+	   delay_ms(10);
+	   LPC_GPIO0->FIOCLR=EN;
+}
+void lcd_str_write(char *pstr){
+			while(*pstr!='\0'){
+			lcd_data_write(*pstr);
+			pstr++;
+	}
+}
 void lcd_clear(void) {
     lcd_cmd_write(0x01);
     delay_ms(2);
 }
+
+

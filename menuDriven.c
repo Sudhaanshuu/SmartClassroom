@@ -1,5 +1,5 @@
 // main.c
-#include "smart_classroom.h"
+#include "project.h"
 
 // Global variables
 Student students[MAX_STUDENTS];
@@ -64,3 +64,5 @@ int main(void) {
         }
     }
 }
+
+

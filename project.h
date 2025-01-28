@@ -71,3 +71,4 @@ extern uint8_t fan_status;
 extern uint8_t light_status;
 
 #endif // SMART_CLASSROOM_H
+
