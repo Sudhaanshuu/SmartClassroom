@@ -41,13 +41,13 @@ char keypad_read() {
         {'7','8','9','C'},
         {'*','0','#','D'}
     };
-
-    for(int i=0; i<4; i++) {
+			 uint32_t i,j,col_val;
+    for( i=0; i<4; i++) {
         LPC_GPIO2->FIOCLR = ROW;
         LPC_GPIO2->FIOSET = code[i] << 4;
-        uint32_t col_val = LPC_GPIO2->FIOPIN & COL;
+         col_val = LPC_GPIO2->FIOPIN & COL;
         
-        for(int j=0; j<4; j++) 
+        for( j=0; j<4; j++) 
             if(col_val == code[j]) 
                 return ktab[i][j];
     }
@@ -55,18 +55,19 @@ char keypad_read() {
 }
 
 void f1_attendance() {
+uint32_t i;
     char input[11] = {0};
     lcd_clear();
     lcd_str_write("Enter Reg No:");
     lcd_cmd_write(0xC0);
-
-    for(int i=0; i<10; i++) {
+				   	
+    for( i=0; i<10; i++) {
         while(!(input[i] = keypad_read()));
         lcd_data_write(input[i]);
         delay(200);
     }
 
-    for(int i=0; i<10; i++) {
+    for( i=0; i<10; i++) {
         if(strcmp(students[i].reg, input) == 0) {
             students[i].present++;
             current_strength++;
@@ -91,14 +92,15 @@ void f2_quiz() {
         {"3*3=?", '9'},
         // Add more questions
     };
-
-    for(int i=0; i<3; i++) {
+			  uint32_t i;
+			  char ans;
+    for( i=0; i<3; i++) {
         lcd_clear();
         lcd_str_write(questions[i].q);
         lcd_cmd_write(0xC0);
         lcd_str_write("A B C D");
 
-        char ans = keypad_read();
+         ans = keypad_read();
         if(ans != questions[i].a) {
             buzzer_alert();
             lcd_clear();
@@ -109,8 +111,9 @@ void f2_quiz() {
 }
 
 void f3_display_info() {
+ char info[16];
     lcd_clear();
-    char info[16];
+   
     sprintf(info, "Temp:%.1fC", read_temperature());
     lcd_str_write(info);
     delay(2000);
@@ -140,9 +143,10 @@ void f4_control_devices() {
 }
 
 float read_temperature() {
+uint32_t adc_value;
     LPC_ADC->ADCR |= (1<<24);
     while(!(LPC_ADC->ADDR2 & (1<<31)));
-    uint32_t adc_value = (LPC_ADC->ADDR2 >> 4) & 0xFFF;
+     adc_value = (LPC_ADC->ADDR2 >> 4) & 0xFFF;
     return (adc_value * 3.3 / 4096) * 100;
 }
 

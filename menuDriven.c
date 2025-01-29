@@ -2,17 +2,19 @@
 #include "project.h"
 
 int main() {
+ 	char input;
     // Initialize hardware
     LPC_GPIO1->FIODIR |= BUZZ|LED|LIGHT|FAN;
     LPC_GPIO2->FIODIR |= ROW;
     LPC_GPIO2->FIODIR &= ~COL;
-    
+  
     lcd_init();
     srand(LPC_RTC->SEC);
     
+    
     while(1) {
         show_menu();
-        char input = keypad_read();
+         input = keypad_read();
         
         switch(input) {
             case '1': f1_attendance(); break;
@@ -29,8 +31,9 @@ void toggle_device(uint32_t device) {
 }
 
 void delay(uint32_t ms) {
-    for(uint32_t i=0; i<ms; i++)
-        for(uint32_t j=0; j<1250; j++);
+    uint32_t i,j;
+    for( i=0; i<ms; i++)
+        for( j=0; j<1250; j++);
 }
 
 void lcd_cmd_write(char cmd) {
