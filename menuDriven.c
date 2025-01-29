@@ -1,68 +1,54 @@
-// main.c
+/* smartclass.c (main) */
 #include "project.h"
 
-// Global variables
-Student students[MAX_STUDENTS];
-uint8_t class_strength = 0;
-uint8_t current_temperature = 0;
-uint8_t fan_status = 0;
-uint8_t light_status = 0;
-
-Question quiz_questions[MAX_QUESTIONS] = {
-    {"2+4=?", {"4", "6", "8", "9"}, '2'},
-    {"7-3=?", {"2", "3", "4", "5"}, '3'},
-    {"5x2=?", {"8", "10","12","6"}, '2'},
-    {"9/3=?", {"2", "3", "4", "5"}, '2'},
-    {"1+1=?", {"1", "2", "3", "4"}, '2'}
-};
-
-int main(void) {
-    char key;
-    
+int main() {
     // Initialize hardware
+    LPC_GPIO1->FIODIR |= BUZZ|LED|LIGHT|FAN;
+    LPC_GPIO2->FIODIR |= ROW;
+    LPC_GPIO2->FIODIR &= ~COL;
+    
     lcd_init();
-    keypad_init();
-    
-    // Initialize GPIO for controls
-    LPC_GPIO1->FIODIR |= BUZZ | LED;
-    LPC_GPIO1->FIODIR |= FAN | LIGHT;
-    
-    // Initialize ADC for temperature
-    LPC_SC->PCONP |= (1<<12);
-    LPC_PINCON->PINSEL1 |= (1<<18);
-    LPC_PINCON->PINSEL1 &= ~(1<<19);
-    LPC_ADC->ADCR |= (1<<2) | (1<<21);
-    
-    // Initialize student data
-    initialize_students();
+    srand(LPC_RTC->SEC);
     
     while(1) {
         show_menu();
-        key = get_key();
+        char input = keypad_read();
         
-        switch(key) {
-            case '1': // FA - Attendance
-                handle_attendance();
-                break;
-                
-            case '2': // FQ - Quiz
-                handle_quiz();
-                break;
-                
-            case '3': // FD - Display
-                handle_display();
-                break;
-                
-            case '4': // FC - Controls
-                handle_controls();
-                break;
-                
-            default:
-                lcd_clear();
-                lcd_str_write("Invalid Choice!");
-                delay_ms(1000);
+        switch(input) {
+            case '1': f1_attendance(); break;
+            case '2': f2_quiz(); break;
+            case '3': f3_display_info(); break;
+            case '4': f4_control_devices(); break;
         }
     }
 }
 
+// Implement remaining helper functions
+void toggle_device(uint32_t device) {
+    LPC_GPIO1->FIOPIN ^= device;
+}
 
+void delay(uint32_t ms) {
+    for(uint32_t i=0; i<ms; i++)
+        for(uint32_t j=0; j<1250; j++);
+}
+
+void lcd_cmd_write(char cmd) {
+    LPC_GPIO0->FIOCLR = 0xFF<<15;
+    LPC_GPIO0->FIOSET = cmd<<15;
+    LPC_GPIO0->FIOCLR = (1<<27); // RS=0
+    LPC_GPIO0->FIOSET = (1<<28); // EN=1
+    delay(2);
+    LPC_GPIO0->FIOCLR = (1<<28);
+    delay(2);
+}
+
+void lcd_data_write(char data) {
+    LPC_GPIO0->FIOCLR = 0xFF<<15;
+    LPC_GPIO0->FIOSET = data<<15;
+    LPC_GPIO0->FIOSET = (1<<27); // RS=1
+    LPC_GPIO0->FIOSET = (1<<28); // EN=1
+    delay(2);
+    LPC_GPIO0->FIOCLR = (1<<28);
+    delay(2);
+}
