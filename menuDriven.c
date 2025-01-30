@@ -9,11 +9,11 @@ uint8_t fan_status = 0;
 uint8_t light_status = 0;
 
 Question quiz_questions[MAX_QUESTIONS] = {
-    {"2+4=?", {"4", "6", "8", "9"}, '2'},
-    {"7-3=?", {"2", "3", "4", "5"}, '3'},
-    {"5x2=?", {"8", "10","12","6"}, '2'},
-    {"9/3=?", {"2", "3", "4", "5"}, '2'},
-    {"1+1=?", {"1", "2", "3", "4"}, '2'}
+    {"2+4=?", {"4", "6", "8", "9"}, 'B'},
+    {"7-3=?", {"2", "3", "4", "5"}, 'C'},
+    {"5x2=?", {"8", "10","12","6"}, 'B'},
+    {"9/3=?", {"2", "3", "4", "5"}, 'B'},
+    {"1+1=?", {"1", "2", "3", "4"}, 'B'}
 };
 
 int main(void) {
@@ -24,8 +24,9 @@ int main(void) {
     keypad_init();
     
     // Initialize GPIO for controls
-    LPC_GPIO1->FIODIR |= BUZZ | LED;
+    LPC_GPIO1->FIODIR |= BUZZ | LED| ALL_LED;
     LPC_GPIO1->FIODIR |= FAN | LIGHT;
+	LPC_GPIO1->FIOCLR = ALL_LED;
     
     // Initialize ADC for temperature
     LPC_SC->PCONP |= (1<<12);
@@ -39,6 +40,7 @@ int main(void) {
     while(1) {
         show_menu();
         key = get_key();
+		
         
         switch(key) {
             case '1': // FA - Attendance
@@ -64,3 +66,4 @@ int main(void) {
         }
     }
 }
+

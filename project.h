@@ -13,13 +13,14 @@
 #define EN (1<<11)       // Enable for LCD
 #define VP (0xFF <<15)    // LCD data pins P0.15-P0.22
 #define BUZZ (1<<27)     // Buzzer pin
-#define LED (1<<19)      // LED pin
+#define LED (1<<25)      // LED pin
 #define FAN (1<<20)      // Fan control pin
 #define LIGHT (1<<21)    // Light control pin
+#define ALL_LED (0xFF << 19)
 
 // Constants
 #define MAX_STUDENTS 10
-#define REG_LENGTH 11    // 10 digits + null terminator
+#define REG_LENGTH 3    // 10 digits + null terminator
 #define MAX_QUESTIONS 5
 
 // Structures
@@ -61,7 +62,7 @@ void buzz_error(void);
 float read_temperature(void);
 void initialize_students(void);
 char* get_random_subject(void);
-
+char* get_random_time(void);
 // External Variables
 extern Student students[MAX_STUDENTS];
 extern uint8_t class_strength;
@@ -71,3 +72,4 @@ extern uint8_t fan_status;
 extern uint8_t light_status;
 
 #endif // SMART_CLASSROOM_H
+
