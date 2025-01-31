@@ -26,9 +26,9 @@ void lcd_init(void) {
 
 void show_menu(void) {
     lcd_clear();
-    lcd_str_write("1:ATTD 2:QUIZ");
+    lcd_str_write("1:AD 2:QZ 3:DIS");
     lcd_cmd_write(0xC0);
-    lcd_str_write("3:DISP 4:CTRL");
+    lcd_str_write("4:CT 5:EM 6:END");
 }
 
 void handle_attendance(void) {
@@ -217,6 +217,28 @@ void buzz_error(void) {
     delay_ms(500);
     LPC_GPIO1->FIOCLR = BUZZ | LED;
 }
+
+void handle_emy(void) {
+int i;
+    for ( i = 0; i < 5; i++) { // Blink for 5 seconds
+	lcd_clear();
+	lcd_str_write("Emergency Altert");
+        LPC_GPIO1->FIOSET = ALL_LED;  // Turn ON all LEDs
+        LPC_GPIO1->FIOSET = BUZZ;     // Turn ON Buzzer
+        delay_ms(500);                // 500ms delay
+
+        LPC_GPIO1->FIOCLR = ALL_LED;  // Turn OFF all LEDs
+        LPC_GPIO1->FIOCLR = BUZZ;     // Turn OFF Buzzer
+        delay_ms(500);                // 500ms delay
+    }
+}
+ void handle_exit(void){
+ lcd_str_write("Exiting...");
+ lcd_clear();
+	LPC_GPIO1->FIOSET = BUZZ | ALL_LED;
+    delay_ms(500);
+    LPC_GPIO1->FIOCLR = BUZZ | ALL_LED;
+ }
 
 float read_temperature(void) {
 uint32_t adc_value;
