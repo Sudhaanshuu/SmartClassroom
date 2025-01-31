@@ -58,6 +58,12 @@ int main(void) {
             case '4': // FC - Controls
                 handle_controls();
                 break;
+			case '5': // FE - Emergancy
+                handle_emy();
+                break;
+			case '6': // FE - Exit
+                handle_exit();
+                break;
                 
             default:
                 lcd_clear();
