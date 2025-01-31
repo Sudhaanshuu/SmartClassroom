@@ -13,7 +13,7 @@
 #define EN (1<<11)       // Enable for LCD
 #define VP (0xFF <<15)    // LCD data pins P0.15-P0.22
 #define BUZZ (1<<27)     // Buzzer pin
-#define LED (1<<25)      // LED pin
+#define LED (1<<26)      // LED pin
 #define FAN (1<<20)      // Fan control pin
 #define LIGHT (1<<21)    // Light control pin
 #define ALL_LED (0xFF << 19)
@@ -55,6 +55,8 @@ void handle_attendance(void);
 void handle_quiz(void);
 void handle_display(void);
 void handle_controls(void);
+void handle_emy(void);
+void handle_exit(void);
 
 // Utility Functions
 void delay_ms(uint32_t ms);
