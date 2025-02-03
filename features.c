@@ -11,9 +11,29 @@ static char ktab[4][4] = {
     {'*','0','#','D'}
 };
 
-// Subject list for random selection
-static char* time[]={"7-8AM","8-9AM","2-3PM","3-4PM","4-5PM"};
+// Subject and time lists
+static char* time[] = {"7-8AM","8-9AM","2-3PM","3-4PM","4-5PM"};
 static char* subjects[] = {"PYTHON", "A.I", "ARM", "C LANGUAGE", "JAVA"};
+
+void initialize_controls(void) {
+    // Initialize GPIO for controls
+    LPC_GPIO1->FIODIR |= BUZZ | MOTOR | ALL_LED;
+    LPC_GPIO1->FIODIR |= FAN | LIGHT;
+    LPC_GPIO1->FIOCLR = ALL_LED;
+    
+    // Initialize ADC for temperature and LDR
+    LPC_SC->PCONP |= (1<<12);
+    
+    // Temperature sensor on AD0.2
+    LPC_PINCON->PINSEL1 |= (1<<18);
+    LPC_PINCON->PINSEL1 &= ~(1<<19);
+    
+    // LDR on AD0.3
+    LPC_PINCON->PINSEL1 |= (1<<20);
+    LPC_PINCON->PINSEL1 &= ~(1<<21);
+    
+    LPC_ADC->ADCR |= (1<<2) | (1<<3) | (1<<21); // Enable both channels
+}
 
 void lcd_init(void) {
     LPC_GPIO0->FIODIR |= RS | VP | EN;
@@ -22,6 +42,123 @@ void lcd_init(void) {
     lcd_cmd_write(0x0E); // cursor on display on
     lcd_cmd_write(0x01); // clear screen
     lcd_cmd_write(0x0C);
+}
+
+void handle_controls(void) {
+    char key;
+	char auto_key;
+	static uint32_t last_display;
+	uint8_t refresh_display;
+	static uint32_t last_sensor_read;
+     refresh_display = 1;
+    
+    while(1) {
+        // Only update display when needed
+        if(refresh_display) {
+            lcd_clear();
+            lcd_str_write("1:Fan 2:Light");
+            lcd_cmd_write(0xC0);
+            lcd_str_write("3:Auto *:Back");
+            refresh_display = 0;
+        }
+
+        // Read sensors at fixed intervals
+         last_sensor_read = 0;
+        if(last_sensor_read++ > 10) {
+            current_temperature = read_temperature();
+            ldr_value = read_ldr();
+            last_sensor_read = 0;
+            
+            // Auto control with hysteresis
+            if(auto_fan_mode) {
+                if(current_temperature >= TEMP_THRESHOLD + 2) {
+                    fan_status = 1;
+                    LPC_GPIO1->FIOSET = FAN | MOTOR;
+                } else if(current_temperature <= TEMP_THRESHOLD - 2) {
+                    fan_status = 0;
+                    LPC_GPIO1->FIOCLR = FAN | MOTOR;
+                }
+            }
+            
+            if(auto_light_mode) {
+                if(ldr_value < LIGHT_THRESHOLD - 100) {
+                    light_status = 1;
+                    LPC_GPIO1->FIOSET = LIGHT;
+                } else if(ldr_value > LIGHT_THRESHOLD + 100) {
+                    light_status = 0;
+                    LPC_GPIO1->FIOCLR = LIGHT;
+                }
+            }
+        }
+        
+        // Check for user input
+        key = get_key();
+        switch(key) {
+            case '1':
+                if(!auto_fan_mode) {
+                    fan_status = !fan_status;
+                    if(fan_status) {
+                        LPC_GPIO1->FIOSET = FAN | MOTOR;
+                    } else {
+                        LPC_GPIO1->FIOCLR = FAN | MOTOR;
+                    }
+                    refresh_display = 1;
+                }
+                break;
+                
+            case '2':
+                if(!auto_light_mode) {
+                    light_status = !light_status;
+                    if(light_status) {
+                        LPC_GPIO1->FIOSET = LIGHT;
+                    } else {
+                        LPC_GPIO1->FIOCLR = LIGHT;
+                    }
+                    refresh_display = 1;
+                }
+                break;
+                
+            case '3':
+                lcd_clear();
+                lcd_str_write("Auto: 1:Fan");
+                lcd_cmd_write(0xC0);
+                lcd_str_write("2:Light *:Back");
+                
+                 auto_key = get_key();
+                if(auto_key == '1') {
+                    auto_fan_mode = !auto_fan_mode;
+                    if(!auto_fan_mode) {
+                        fan_status = 0;
+                        LPC_GPIO1->FIOCLR = FAN | MOTOR;
+                    }
+                } else if(auto_key == '2') {
+                    auto_light_mode = !auto_light_mode;
+                    if(!auto_light_mode) {
+                        light_status = 0;
+                        LPC_GPIO1->FIOCLR = LIGHT;
+                    }
+                }
+                refresh_display = 1;
+                break;
+                
+            case '*':
+                return;
+        }
+        
+        // Status display with fixed interval updates
+         last_display = 0;
+        if(last_display++ > 5) {
+            lcd_clear();
+            lcd_str_write(fan_status ? "Fan:ON " : "Fan:OFF ");
+            lcd_str_write(light_status ? "L:ON" : "L:OFF");
+            lcd_cmd_write(0xC0);
+            if(auto_fan_mode) lcd_str_write("AutoF ");
+            if(auto_light_mode) lcd_str_write("AutoL");
+            last_display = 0;
+        }
+        
+        delay_ms(50);
+    }
 }
 
 void show_menu(void) {
@@ -39,12 +176,11 @@ void handle_attendance(void) {
     lcd_str_write("Enter ROLL No ");
     lcd_cmd_write(0xC0);
     
-    // Read input safely to prevent overflow
     get_string(reg_no, REG_LENGTH);
     
     for(i = 0; i < MAX_STUDENTS; i++) {
         if(strcmp(reg_no, students[i].reg_no) == 0) {
-            found = 1; // Student found
+            found = 1;
             if(!students[i].present) {
                 students[i].present = 1;
                 class_strength++;
@@ -65,7 +201,7 @@ void handle_attendance(void) {
     if(!found) {
         buzz_error();
         lcd_clear();
-        lcd_str_write("Invalid Roll Number");
+        lcd_str_write("Invalid Roll No");
     }
     
     delay_ms(1500);
@@ -77,12 +213,11 @@ void handle_quiz(void) {
     uint8_t score = 0;
     char score_str[16];
     
-    for(i = 0; i < 3; i++) { // Only show first 3 questions
+    for(i = 0; i < 3; i++) {
         lcd_clear();
         lcd_str_write(quiz_questions[i].question);
         lcd_cmd_write(0xC0);
         
-        // Show all options in a single line
         sprintf(score_str, "A:%s B:%s C:%s D:%s", 
                 quiz_questions[i].options[0], 
                 quiz_questions[i].options[1], 
@@ -110,67 +245,113 @@ void handle_quiz(void) {
     delay_ms(2000);
 }
 
-
 void handle_display(void) {
     char temp_str[16];
     char strength_str[16];
     
-    // Read and display temperature
     current_temperature = read_temperature();
     sprintf(temp_str, "Temp: %dC", current_temperature);
     lcd_clear();
     lcd_str_write(temp_str);
-	delay_ms(2000);
+    delay_ms(2000);
     
-    // Display class strength
-    //lcd_cmd_write(0xC0);
-	lcd_clear();
+    lcd_clear();
     sprintf(strength_str, "Student Count:%d", class_strength);
     lcd_str_write(strength_str);
     delay_ms(2000);
     
-    // Display next class
     lcd_clear();
     lcd_str_write("Next Class ");
-	lcd_str_write(get_random_time());
+    lcd_str_write(get_random_time());
     lcd_cmd_write(0xC0);
     lcd_str_write(get_random_subject());
     delay_ms(2000);
 }
 
-void handle_controls(void) {
-    char key;
-    lcd_clear();
-    lcd_str_write("1:Fan 2:Light");
-    lcd_cmd_write(0xC0);
-    lcd_str_write("*:Back");
-    
-    while(1) {
-        key = get_key();
-        if(key == '1') {
-            fan_status = !fan_status;
-            if(fan_status)
-                LPC_GPIO1->FIOSET = FAN;
-            else
-                LPC_GPIO1->FIOCLR = FAN;
-        }
-        else if(key == '2') {
-            light_status = !light_status;
-            if(light_status)
-                LPC_GPIO1->FIOSET = LIGHT;
-            else
-                LPC_GPIO1->FIOCLR = LIGHT;
-        }
-        else if(key == '*')
-            break;
-            
-        // Update status display
+void handle_emy(void) {
+    int i;
+    for(i = 0; i < 5; i++) {
         lcd_clear();
-        lcd_str_write(fan_status ? "Fan:ON " : "Fan:OFF ");
-        lcd_str_write(light_status ? "L:ON" : "L:OFF");
-        lcd_cmd_write(0xC0);
-        lcd_str_write("*:Back");
+        lcd_str_write("Emergency Alert");
+        LPC_GPIO1->FIOSET = ALL_LED;
+        LPC_GPIO1->FIOSET = BUZZ;
+        delay_ms(500);
+        
+        LPC_GPIO1->FIOCLR = ALL_LED;
+        LPC_GPIO1->FIOCLR = BUZZ;
+        delay_ms(500);
     }
+}
+
+void handle_exit(void) {
+    // Turn off all devices
+    LPC_GPIO1->FIOCLR = FAN | MOTOR | LIGHT | ALL_LED;
+    fan_status = 0;
+    light_status = 0;
+    auto_fan_mode = 0;
+    auto_light_mode = 0;
+    
+    lcd_clear();
+    lcd_str_write("Shutting down...");
+    
+    LPC_GPIO1->FIOSET = BUZZ;
+    delay_ms(500);
+    LPC_GPIO1->FIOCLR = BUZZ;
+    
+    lcd_clear();
+    lcd_str_write("System Off");
+    delay_ms(1000);
+    lcd_clear();
+}
+
+float read_temperature(void) {
+    uint32_t adc_value;
+    LPC_ADC->ADCR &= ~(0xFF << 8);
+    LPC_ADC->ADCR |= (1<<2);
+    LPC_ADC->ADCR |= (1<<24);
+    while((LPC_ADC->ADDR2 & (1<<31)) == 0);
+    adc_value = (LPC_ADC->ADDR2 >> 4) & 0xFFF;
+    return (adc_value * 3.3 * 100.0) / 4096.0;
+}
+
+uint16_t read_ldr(void) {
+    LPC_ADC->ADCR &= ~(0xFF << 8);
+    LPC_ADC->ADCR |= (1<<3);  // Select AD0.3
+    LPC_ADC->ADCR |= (1<<24); // Start conversion
+    while((LPC_ADC->ADDR3 & (1<<31)) == 0);
+    return (LPC_ADC->ADDR3 >> 4) & 0xFFF;
+}
+
+void initialize_students(void) {
+uint32_t i;
+    strcpy(students[0].name, "SUDHANSHU");
+    strcpy(students[0].reg_no, "333");
+    
+    strcpy(students[1].name, "AYAN");
+    strcpy(students[1].reg_no, "555");
+    
+    strcpy(students[2].name, "KAPISH");
+    strcpy(students[2].reg_no, "444");
+    
+    strcpy(students[3].name, "NIRMAL");
+    strcpy(students[3].reg_no, "222");
+    
+    strcpy(students[4].name, "ARPITA");
+    strcpy(students[4].reg_no, "111");
+    
+    // Initialize presence to 0
+	
+    for( i = 0; i < MAX_STUDENTS; i++) {
+        students[i].present = 0;
+    }
+}
+
+char* get_random_subject(void) {
+    return subjects[rand() % 5];
+}
+
+char* get_random_time(void) {
+    return time[rand() % 5];
 }
 
 void keypad_init(void) {
@@ -201,7 +382,7 @@ void get_string(char *str, uint8_t max_len) {
     uint8_t i = 0;
     char key;
     
-    while(i < max_len) {
+    while(i < max_len - 1) {
         key = get_key();
         if(key == '#') break;
         if(key >= '0' && key <= '9') {
@@ -212,109 +393,45 @@ void get_string(char *str, uint8_t max_len) {
     str[i] = '\0';
 }
 
+void lcd_cmd_write(char c) {
+    LPC_GPIO0->FIOCLR = VP;
+    LPC_GPIO0->FIOSET = c << 15;
+    LPC_GPIO0->FIOCLR = RS;
+    LPC_GPIO0->FIOSET = EN;
+    delay_ms(10);
+    LPC_GPIO0->FIOCLR = EN;
+}
+
+void lcd_data_write(char d) {
+    LPC_GPIO0->FIOCLR = VP;
+    LPC_GPIO0->FIOSET = d << 15;
+    LPC_GPIO0->FIOSET = RS;
+    LPC_GPIO0->FIOSET = EN;
+    delay_ms(10);
+    LPC_GPIO0->FIOCLR = EN;
+}
+
+void lcd_str_write(char *pstr) {
+    while(*pstr != '\0') {
+        lcd_data_write(*pstr);
+        pstr++;
+    }
+}
+
+void lcd_clear(void) {
+    lcd_cmd_write(0x01);
+    delay_ms(2);
+}
+
 void buzz_error(void) {
     LPC_GPIO1->FIOSET = BUZZ | LED;
     delay_ms(500);
     LPC_GPIO1->FIOCLR = BUZZ | LED;
 }
 
-void handle_emy(void) {
-int i;
-    for ( i = 0; i < 5; i++) { // Blink for 5 seconds
-	lcd_clear();
-	lcd_str_write("Emergency Altert");
-        LPC_GPIO1->FIOSET = ALL_LED;  // Turn ON all LEDs
-        LPC_GPIO1->FIOSET = BUZZ;     // Turn ON Buzzer
-        delay_ms(500);                // 500ms delay
-
-        LPC_GPIO1->FIOCLR = ALL_LED;  // Turn OFF all LEDs
-        LPC_GPIO1->FIOCLR = BUZZ;     // Turn OFF Buzzer
-        delay_ms(500);                // 500ms delay
-    }
-}
- void handle_exit(void){
- lcd_str_write("Exiting...");
- lcd_clear();
-	LPC_GPIO1->FIOSET = BUZZ | ALL_LED;
-    delay_ms(500);
-    LPC_GPIO1->FIOCLR = BUZZ | ALL_LED;
- }
-
-float read_temperature(void) {
-uint32_t adc_value;
-    LPC_ADC->ADCR |= (1<<24);
-    while((LPC_ADC->ADDR2 & (1<<31)) == 0);
-     adc_value = (LPC_ADC->ADDR2 >> 4) & 0xFFF;
-    return (adc_value * 3.3 * 100.0) / 4096.0;
-}
-			uint32_t i;
-void initialize_students(void) {
-    // Initialize with 10 sample Indian names and registration numbers
-    strcpy(students[0].name, "SUDHANSHU");
-    strcpy(students[0].reg_no, "333");
-    
-    strcpy(students[1].name, "AYAN");
-    strcpy(students[1].reg_no, "555");
-    
-    strcpy(students[2].name, "KAPISH");
-    strcpy(students[2].reg_no, "444");
-    
-    strcpy(students[3].name, "NIRMAL");
-    strcpy(students[3].reg_no, "222");
-    
-    strcpy(students[4].name, "ARPITA");
-    strcpy(students[4].reg_no, "111");
-    
-   
-    
-    
-    // Initialize presence to 0
-    for( i = 0; i < MAX_STUDENTS; i++) {
-        students[i].present = 0;
-    }
-}
-
-char* get_random_subject(void) {
-    return subjects[rand() % 5];
-}
-char* get_random_time(void) {
-    return time[rand() % 5];
-}
 void delay_ms(uint32_t ms) {
     uint32_t i, j;
     for(i = 0; i < ms; i++) {
         for(j = 0; j < 1250; j++) {}
     }
 }
-
-
-void lcd_cmd_write(char c){
-	   LPC_GPIO0->FIOCLR=VP;
-	   LPC_GPIO0->FIOSET=c<<15;
-	   LPC_GPIO0->FIOCLR=RS;
-	   LPC_GPIO0->FIOSET=EN;
-	   delay_ms(10);
-	   LPC_GPIO0->FIOCLR=EN;
-
-
-}
-
-void lcd_data_write(char d){
-       LPC_GPIO0->FIOCLR=VP;
-	   LPC_GPIO0->FIOSET=d<<15;
-	   LPC_GPIO0->FIOSET=RS;
-	   LPC_GPIO0->FIOSET=EN;
-	   delay_ms(10);
-	   LPC_GPIO0->FIOCLR=EN;
-}
-void lcd_str_write(char *pstr){
-			while(*pstr!='\0'){
-			lcd_data_write(*pstr);
-			pstr++;
-	}
-}
-void lcd_clear(void) {
-    lcd_cmd_write(0x01);
-    delay_ms(2);
-}
-
