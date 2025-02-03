@@ -1,3 +1,4 @@
+// project.h
 #ifndef SMART_CLASSROOM_H
 #define SMART_CLASSROOM_H
 
@@ -7,20 +8,24 @@
 #include <stdio.h>
 
 // Pin Definitions
-#define ROW (0x0F << 4)  // port2.7 to 2.4
-#define COL (0x0F)       // port2.3 to port2.0
-#define RS (1<<10)       // Register Select for LCD
-#define EN (1<<11)       // Enable for LCD
-#define VP (0xFF <<15)    // LCD data pins P0.15-P0.22
-#define BUZZ (1<<27)     // Buzzer pin
-#define LED (1<<26)      // LED pin
-#define FAN (1<<20)      // Fan control pin
-#define LIGHT (1<<21)    // Light control pin
+#define ROW (0x0F << 4)    // port2.7 to 2.4
+#define COL (0x0F)         // port2.3 to port2.0
+#define RS (1<<10)         // Register Select for LCD
+#define EN (1<<11)         // Enable for LCD
+#define VP (0xFF <<15)     // LCD data pins P0.15-P0.22
+#define BUZZ (1<<27)       // Buzzer pin
+#define LED (1<<26)        // LED pin
+#define MOTOR (1<<28)      // Motor control pin
+#define FAN (1<<20)        // Fan control pin
+#define LIGHT (1<<21)      // Light control pin
 #define ALL_LED (0xFF << 19)
+#define LDR_PIN (3)        // ADC channel 3 for LDR
+#define TEMP_THRESHOLD 30   // Temperature threshold for auto fan
+#define LIGHT_THRESHOLD 2000 // LDR threshold for auto light
 
 // Constants
 #define MAX_STUDENTS 10
-#define REG_LENGTH 3    // 10 digits + null terminator
+#define REG_LENGTH 4       // 3 digits + null terminator
 #define MAX_QUESTIONS 5
 
 // Structures
@@ -62,9 +67,12 @@ void handle_exit(void);
 void delay_ms(uint32_t ms);
 void buzz_error(void);
 float read_temperature(void);
+uint16_t read_ldr(void);
 void initialize_students(void);
+void initialize_controls(void);
 char* get_random_subject(void);
 char* get_random_time(void);
+
 // External Variables
 extern Student students[MAX_STUDENTS];
 extern uint8_t class_strength;
@@ -72,6 +80,10 @@ extern Question quiz_questions[MAX_QUESTIONS];
 extern uint8_t current_temperature;
 extern uint8_t fan_status;
 extern uint8_t light_status;
+extern uint8_t auto_fan_mode;
+extern uint8_t auto_light_mode;
+extern uint16_t ldr_value;
 
 #endif // SMART_CLASSROOM_H
+
 
