@@ -1,3 +1,4 @@
+
 // main.c
 #include "project.h"
 
@@ -7,6 +8,9 @@ uint8_t class_strength = 0;
 uint8_t current_temperature = 0;
 uint8_t fan_status = 0;
 uint8_t light_status = 0;
+uint8_t auto_fan_mode = 0;
+uint8_t auto_light_mode = 0;
+uint16_t ldr_value = 0;
 
 Question quiz_questions[MAX_QUESTIONS] = {
     {"2+4=?", {"4", "6", "8", "9"}, 'B'},
@@ -22,17 +26,7 @@ int main(void) {
     // Initialize hardware
     lcd_init();
     keypad_init();
-    
-    // Initialize GPIO for controls
-    LPC_GPIO1->FIODIR |= BUZZ | LED| ALL_LED;
-    LPC_GPIO1->FIODIR |= FAN | LIGHT;
-	LPC_GPIO1->FIOCLR = ALL_LED;
-    
-    // Initialize ADC for temperature
-    LPC_SC->PCONP |= (1<<12);
-    LPC_PINCON->PINSEL1 |= (1<<18);
-    LPC_PINCON->PINSEL1 &= ~(1<<19);
-    LPC_ADC->ADCR |= (1<<2) | (1<<21);
+    initialize_controls();
     
     // Initialize student data
     initialize_students();
@@ -40,7 +34,6 @@ int main(void) {
     while(1) {
         show_menu();
         key = get_key();
-		
         
         switch(key) {
             case '1': // FA - Attendance
@@ -58,10 +51,12 @@ int main(void) {
             case '4': // FC - Controls
                 handle_controls();
                 break;
-			case '5': // FE - Emergancy
+                
+            case '5': // FE - Emergency 
                 handle_emy();
                 break;
-			case '6': // FE - Exit
+                
+            case '6': // FX - Exit
                 handle_exit();
                 break;
                 
@@ -73,3 +68,4 @@ int main(void) {
     }
 }
 
+						
