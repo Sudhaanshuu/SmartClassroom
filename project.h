@@ -85,5 +85,3 @@ extern uint8_t auto_light_mode;
 extern uint16_t ldr_value;
 
 #endif // SMART_CLASSROOM_H
-
-
