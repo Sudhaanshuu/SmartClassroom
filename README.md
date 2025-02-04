@@ -43,7 +43,7 @@ The **environmental control module** allows for manual and automatic operation o
 - **Display Module:** LCD
 - **Input Interface:** Keypad
 - **Sensors:** Temperature sensor, LDR (Light Dependent Resistor)
-- **Actuators:** Fan, Light
+- **Actuators:** Fan, Light,LDR
 
 ## How to Run the Project
 
@@ -57,4 +57,5 @@ The **environmental control module** allows for manual and automatic operation o
 - Implement IoT integration for remote monitoring.
 - Enhance the user interface with a touchscreen.
 - Expand features for automated scheduling and AI-based classroom management.
+
 
